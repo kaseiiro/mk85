@@ -2,7 +2,7 @@
 # Soviet microcomputer partial emulation
 #
 # DISCLAMER. This is not a MK85C clone! Coincidences are accidental.
-# Version 0.1.
+# Version 0.2.
 # 2024  kaseiiro@gmail.com
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@
 
 import textwrap
 import math
+import secrets
 
 
 #===========================================================================================
@@ -51,46 +52,34 @@ table_1 = bytes.fromhex("060E284256 0852554D44 43021A1735 3361463039 \
 
 def elementary_round(data, key, offset):
 
-    out_data = bytearray(data)
-
     R0 = (table_1[elementary_round.internal_state] + key[offset]) % 100 # Range 0 to 99.
     R2 = data[offset % BLOCK_SIZE]
     elementary_round.internal_state = (100 + elementary_round.internal_state + R0 - R2) % 100 # Range 0 to 99.
-    out_data[offset % BLOCK_SIZE] = R0
+    data[offset % BLOCK_SIZE] = R0
         
-    return bytes(out_data)
+    return data
     
 
 def full_round(data, key):
 
-    out_data = bytearray(data)
-
     for i in range(KEY_LENGTH):
-        out_data = elementary_round(out_data, key, i)
+        data = elementary_round(data, key, i)
 
-    return bytes(out_data)
+    return data
     
     
 # Get blocks_n pieces of stream, BLOCK_SIZE each.
 def stream(mrk, key, blocks_n):
 
-    mrk *= 2
-    mrk_ext = bytearray(BLOCK_SIZE)
-    initial_state = 0
+    buffer = mrk * 2
+    elementary_round.internal_state = sum(buffer) % 100
 
-    for i in range(BLOCK_SIZE):
-        mrk_ext[i] = (mrk[i] // 16 * 10) + mrk[i] % 16
-        initial_state = (initial_state + mrk_ext[i]) % 100
-
-    buffer = bytes(mrk_ext)
-    elementary_round.internal_state = initial_state
-
-    temp = b''
+    temp = bytearray()
     
     for ii in range(6):
         buffer = full_round(buffer, key)
         #print(buffer.hex())
-        temp = temp + buffer
+        temp += buffer
         
     #print(temp.hex())
 
@@ -98,14 +87,14 @@ def stream(mrk, key, blocks_n):
     for i in range(KEY_LENGTH):
         new_key[i] = (key[i] + temp[i]) % 100 # Range 0 to 99.
         
-    new_key = bytes(new_key)
+    new_key = new_key
     #print(new_key.hex())
 
-    temp = b''
+    temp = bytearray()
     
     for ii in range(blocks_n):
         buffer = full_round(buffer, new_key) 
-        temp = temp + buffer
+        temp += buffer
 
     #print(temp.hex())
     
@@ -121,7 +110,7 @@ def stream(mrk, key, blocks_n):
 def cs(key):
 
     # @371E: 4A380E2109 4A380E2109 hex is 7456143309 dec, a magic number...
-    mrk = bytes.fromhex('7456143309')
+    mrk = fromdec('7456143309')
     cs_raw = stream(mrk, key, 1)    
     
     # @3764
@@ -129,17 +118,11 @@ def cs(key):
 
     cs = bytearray(10)
     for i in range(5):
-        temp = cs_raw[i] // 10 - cs_mask[i * 2]
-        if(temp < 0):
-            temp += 10
-        cs[i * 2] = temp
-        temp = cs_raw[i] % 10 - cs_mask[i * 2 + 1]
-        if(temp < 0):
-            temp += 10
-        cs[i * 2 + 1] = temp
+        cs[i * 2] = (10 + cs_raw[i] // 10 - cs_mask[i * 2]) % 10
+        cs[i * 2 + 1] = (10 + cs_raw[i] % 10 - cs_mask[i * 2 + 1]) % 10
         #print(cs_raw[i:i + 1].hex())
         
-    print(cs.hex())
+    #print(cs.hex())
 
     return bytes(cs)
 
@@ -153,9 +136,15 @@ def cs(key):
 
 
 #===========================================================================================
-# Raw key to printable
 
+# Raw key to printable
 def key_to_str(key):
+
+    if(len(key) == 50):
+        key += cs(key)
+        
+    if(len(key) != 60):
+        raise Exception(f'Wrong raw key lenght! Got {len(key)}, must be 50 or 60.')
 
     out_string = ''
 
@@ -168,26 +157,73 @@ def key_to_str(key):
     return ' '.join(textwrap.wrap(out_string, 5))
     
     
-# Ctext string to (mrk, raw_ctext)
+# Printable key to raw key
+def str_to_key(string):
 
+    temp = string.replace(' ', '')
+    
+    if(len(temp) != 110):
+        raise Exception(f'Wrong key lenght! Got {len(temp)}, must be 110.')
+    
+    key = fromdec(temp[0:100])
+    cs_in = fromdec_base10(temp[100:110])
+    cs_calc = cs(key)
+    #print(cs_in.hex(), cs_calc.hex())
+    
+    if(cs_in != cs_calc):
+        print(f'Warning! Wrong key CS!')
+    
+    return key
+    
+    
+# Raw mrk to printable
+def mrk_to_str(mrk):
+
+    if(len(mrk) != 5):
+        raise Exception(f'Wrong raw mrk lenght! Got {len(mrk)}, must be 5.')
+
+    out_string = ''
+
+    for i in range(5):
+        out_string += f'{mrk[i]:>02}'
+        
+    return out_string
+    
+    
+# Ctext string to (mrk, raw_ctext)
 def str_to_mrk_ctext(string):
 
     temp = string.replace(' ', '')
 
     if(len(temp) % 2):
-        temp += '0'
-        
-    temp = bytes.fromhex(temp)
-
-    mrk = temp[0:5]
-    ctext = bytearray(temp[5:])
+        temp = temp[:-1] # For text mode only?
     
-    for i in range(len(ctext)):
-        ctext[i] = (ctext[i] // 16 * 10) + ctext[i] % 16
+    mrk = fromdec(temp[0:10])
+    ctext = fromdec(temp[10:])
     
-    ctext = bytes(ctext)
-        
     return mrk, ctext
+    
+    
+# Similar to bytes.fromhex, but decimal; byte is 0 to 99
+def fromdec(string):
+
+    temp = bytearray.fromhex(string)
+    
+    for i in range(len(temp)):
+        temp[i] = (temp[i] // 16 * 10) + temp[i] % 16
+        
+    return temp
+    
+    
+# Similar to bytes.fromhex, but decimal; byte is 0 to 9
+def fromdec_base10(string):
+
+    temp = bytearray(len(string))
+    
+    for i in range(len(string)):
+        temp[i] = int(string[i])
+        
+    return temp
 
 
 #===========================================================================================
@@ -201,8 +237,9 @@ def str_to_mrk_ctext(string):
 def decrypt_letters(ctext, key):
 
     mrk, ctext = str_to_mrk_ctext(ctext)
+    k = str_to_key(key)
 
-    s = stream(mrk, key, math.ceil(len(ctext) / 10))
+    s = stream(mrk, k, math.ceil(len(ctext) / 10))
     #print(s.hex())
 
     ptext = ''
@@ -215,6 +252,36 @@ def decrypt_letters(ctext, key):
 
     #print(output_raw.hex())
     return ptext
+    
+    
+def encrypt_letters(ptext, key, group_n):
+
+    full_ctext_len = math.ceil((10 + len(ptext) * 2) / group_n) * group_n
+    ctext_len_wo_mrk = full_ctext_len - 10
+    #print(full_ctext_len, ctext_len_wo_mrk)
+    
+    mrk = bytearray(5)
+    for i in range(5):
+       mrk[i] = secrets.randbelow(100)
+    
+    k = str_to_key(key)
+    s = stream(mrk, k, math.ceil(ctext_len_wo_mrk / 10))
+    ctext_raw_len = math.ceil(ctext_len_wo_mrk / 2)
+    #print(ctext_raw_len)
+    
+    ctext = ''
+    
+    ptext_extended = ptext.upper() + ' ' * (ctext_raw_len - len(ptext))
+    #print(ptext_extended)
+    
+    for i in range(ctext_raw_len):
+        temp = charset.find(ptext_extended[i])
+        if temp == -1:
+            temp = 0
+
+        ctext += f'{((10 + s[i] // 10 - temp // 10) % 10):>01}{((10 + s[i] % 10 - temp % 10) % 10):>01}' # Do it digitwise (decimal)! A single character is equal to TWO digits!
+
+    return ' '.join(textwrap.wrap((mrk_to_str(mrk) + ctext)[0:full_ctext_len], group_n))
     
 
 #===========================================================================================
