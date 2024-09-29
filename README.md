@@ -6,11 +6,11 @@ This is not a MK85C clone! **Coincidences are accidental.** Use this code at you
 
 # Function
 * Generate a new long-term password.
+* Encrypt text messages.
 * Decrypt text messages.
 
 # ToDo
-* Encrypt text messages.
-* Encrypt/decrypt digits-only messages.
+* Encrypt/decrypt digit-only messages.
 * Readme.
 
 # Never planned
