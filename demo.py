@@ -1,0 +1,21 @@
+import secrets
+import mk85c
+
+
+
+# @8098, @80F8, etc.
+k = bytes.fromhex('54352C3B56232E382F32454A43373E601C1340471058614C1D5E57633F5E490722360F1D5A035D38365E29070C554B482042')
+
+
+
+demo_str = '13097 66526 02468 34895 57830 91323 69784'
+print(mk85c.decrypt_letters(demo_str, k))
+
+demo_str = '5166 1825 9887 1340 1940 2688 8582 9395 9141 7652 5105 2564 0394 2727 8949 7965' # Has a typo.
+print(mk85c.decrypt_letters(demo_str, k))
+
+demo_str = '5166 1825 9887 1340 1940 2688 8582 9395 9141 7652 5105 2564 0934 2727 8949 7965'
+print(mk85c.decrypt_letters(demo_str, k))
+
+demo_str = '7023 8033 0910 4080 7758 5613 5857 0310 7195 3198 8814 6627 9934 3228 8412 3330'
+print(mk85c.decrypt_letters(demo_str, k))
