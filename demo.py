@@ -5,21 +5,40 @@ k = '84534 45986 35465 64750 69746 75562 96281 96471 16889 77629 94879 96394 730
 
 
 demo_str = '13097 66526 02468 34895 57830 91323 69784'
-print(mk85c.decrypt_letters(demo_str, k))
+print(mk85c.decrypt_text(demo_str, k))
 
 demo_str = '5166 1825 9887 1340 1940 2688 8582 9395 9141 7652 5105 2564 0394 2727 8949 7965' # Has a typo.
-print(mk85c.decrypt_letters(demo_str, k))
+print(mk85c.decrypt_text(demo_str, k))
 
 demo_str = '5166 1825 9887 1340 1940 2688 8582 9395 9141 7652 5105 2564 0934 2727 8949 7965'
-print(mk85c.decrypt_letters(demo_str, k))
+print(mk85c.decrypt_text(demo_str, k))
 
 demo_str = '7023 8033 0910 4080 7758 5613 5857 0310 7195 3198 8814 6627 9934 3228 8412 3330'
-print(mk85c.decrypt_letters(demo_str, k))
+print(mk85c.decrypt_text(demo_str, k))
 
 
 
 
-demo_str = 'юЙъ$7'
-demo_str = mk85c.encrypt_letters(demo_str, k, 5)
+demo_str = 'юЙъ$7#…'
+demo_str = mk85c.encrypt_text(demo_str, k, 5)
 print(demo_str)
-print(mk85c.decrypt_letters(demo_str, k))
+print(mk85c.decrypt_text(demo_str, k))
+
+
+
+k = '90454 54227 43925 99936 40399 51840 49836 80035 93818 61483 88028 99527 74270 68143 89926 37992 51380 69136 51737 62078 66017 55411'
+
+demo_str = '01765 50432 95839 97883 43633 61433 30679 66834 96570'
+print(mk85c.decrypt_text(demo_str, k))
+
+demo_str = '01765 50432 95839 97883 61433 30679 66834 96570'
+print(mk85c.decrypt_text(demo_str, k))
+
+demo_str = '01765 50432 95839 97883 61433 30679 66834 96570'
+print(mk85c.decrypt_text(demo_str, k, tweak = (6, -5)))
+
+demo_str = '01765 50432 95839 97883 43633 43633 61433 30679 66834 96570'
+print(mk85c.decrypt_text(demo_str, k))
+
+demo_str = '01765 50432 95839 97883 43633 43633 61433 30679 66834 96570'
+print(mk85c.decrypt_text(demo_str, k, tweak = (8, +5)))

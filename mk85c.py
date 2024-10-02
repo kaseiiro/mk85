@@ -2,7 +2,7 @@
 # Soviet microcomputer partial emulation
 #
 # DISCLAMER. This is not a MK85C clone! Coincidences are accidental.
-# Version 0.2.
+# Version 0.3.
 # 2024  kaseiiro@gmail.com
 #
 # This program is free software: you can redistribute it and/or modify
@@ -29,9 +29,6 @@ import secrets
 # Charset (tweaked KOI-8, 96 characters)
 
 charset = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[Ъ]…ЁЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧ█    '
-
-#===========================================================================================
-
 
 
 #===========================================================================================
@@ -78,30 +75,19 @@ def stream(mrk, key, blocks_n):
     
     for ii in range(6):
         buffer = full_round(buffer, key)
-        #print(buffer.hex())
         temp += buffer
         
-    #print(temp.hex())
-
     new_key = bytearray(KEY_LENGTH)
     for i in range(KEY_LENGTH):
         new_key[i] = (key[i] + temp[i]) % 100 # Range 0 to 99.
         
-    new_key = new_key
-    #print(new_key.hex())
-
     temp = bytearray()
     
     for ii in range(blocks_n):
         buffer = full_round(buffer, new_key) 
         temp += buffer
-
-    #print(temp.hex())
     
     return temp
-
-
-#===========================================================================================
 
 
 #===========================================================================================
@@ -125,13 +111,6 @@ def cs(key):
     #print(cs.hex())
 
     return bytes(cs)
-
-
-#===========================================================================================
-
-
-
-
 
 
 
@@ -224,6 +203,17 @@ def fromdec_base10(string):
         temp[i] = int(string[i])
         
     return temp
+    
+    
+# Raw dec to printable
+def dec_to_str(data):
+
+    out_string = ''
+
+    for i in range(len(data)):
+        out_string += f'{data[i]:>02}'
+
+    return out_string
 
 
 #===========================================================================================
@@ -234,13 +224,23 @@ def fromdec_base10(string):
 # Higher level functions
 
 
-def decrypt_letters(ctext, key):
+def decrypt_text(ctext, key, tweak = (0, 0)):
+
+    #=========== +/- 1 tweak ==================
+    index = (tweak[0] - 1) * 2 + 10
+    
+    if(tweak[1] < 0):
+        #ctext = ('0' * (-tweak[1])).join([ctext[:tweak[0] + 10], ctext[tweak[0] + 10:]])
+        ctext = ctext[:index] + '0' * (-tweak[1]) + ctext[index:]
+    if(tweak[1] > 0):
+        ctext = ctext[:index] + ctext[index + tweak[1]:]
+    #==========================================
 
     mrk, ctext = str_to_mrk_ctext(ctext)
+    
     k = str_to_key(key)
 
-    s = stream(mrk, k, math.ceil(len(ctext) / 10))
-    #print(s.hex())
+    s = stream(mrk, k, math.ceil(len(ctext) / BLOCK_SIZE + 1))
 
     ptext = ''
     output_raw = bytearray(len(ctext))
@@ -250,29 +250,25 @@ def decrypt_letters(ctext, key):
         output_raw[i] += (10 + s[i] % 10 - ctext[i] % 10) % 10
         ptext += charset[output_raw[i]]
 
-    #print(output_raw.hex())
     return ptext
     
     
-def encrypt_letters(ptext, key, group_n):
+def encrypt_text(ptext, key, group_n):
 
     full_ctext_len = math.ceil((10 + len(ptext) * 2) / group_n) * group_n
     ctext_len_wo_mrk = full_ctext_len - 10
-    #print(full_ctext_len, ctext_len_wo_mrk)
-    
+
     mrk = bytearray(5)
     for i in range(5):
        mrk[i] = secrets.randbelow(100)
     
     k = str_to_key(key)
-    s = stream(mrk, k, math.ceil(ctext_len_wo_mrk / 10))
+    s = stream(mrk, k, math.ceil(ctext_len_wo_mrk / BLOCK_SIZE))
     ctext_raw_len = math.ceil(ctext_len_wo_mrk / 2)
-    #print(ctext_raw_len)
     
     ctext = ''
     
     ptext_extended = ptext.upper() + ' ' * (ctext_raw_len - len(ptext))
-    #print(ptext_extended)
     
     for i in range(ctext_raw_len):
         temp = charset.find(ptext_extended[i])
