@@ -2,7 +2,7 @@
 # Soviet microcomputer partial emulation
 #
 # DISCLAMER. This is not a MK85C clone! Coincidences are accidental.
-# Version 0.5.
+# Version 0.6.
 # 2024  kaseiiro@gmail.com
 #
 # This program is free software: you can redistribute it and/or modify
@@ -170,9 +170,21 @@ def mrk_to_str(mrk):
     
     
 # Ctext string to (mrk, raw_ctext)
-def str_to_mrk_ctext(string):
+def str_to_mrk_ctext(string, tweak = (0, 0)):
 
     temp = string.replace(' ', '')
+
+    #=========== +/- 1 tweak ==================
+    
+    index = (tweak[0] - 1) * 2 + 10
+    
+    if(tweak[1] < 0):
+        #temp = ('0' * (-tweak[1])).join([temp[:tweak[0] + 10], temp[tweak[0] + 10:]])
+        temp = temp[:index] + '0' * (-tweak[1]) + temp[index:]
+    if(tweak[1] > 0):
+        temp = temp[:index] + temp[index + tweak[1]:]
+    #==========================================
+    
 
     if(len(temp) % 2):
         temp = temp[:-1] # For text mode only?
@@ -226,23 +238,11 @@ def dec_to_str(data):
 
 def decrypt_text(ctext, key, tweak = (0, 0)):
 
-    #=========== +/- 1 tweak ==================
-    
-    
-    if(tweak[1] < 0):
-        index = (tweak[0] + 1) * 2 + 10
-        #ctext = ('0' * (-tweak[1])).join([ctext[:tweak[0] + 10], ctext[tweak[0] + 10:]])
-        ctext = ctext[:index] + '0' * (-tweak[1]) + ctext[index:]
-    if(tweak[1] > 0):
-        index = (tweak[0] - 1) * 2 + 10
-        ctext = ctext[:index] + ctext[index + tweak[1]:]
-    #==========================================
-
-    mrk, ctext = str_to_mrk_ctext(ctext)
+    mrk, ctext = str_to_mrk_ctext(ctext, tweak)
     
     k = str_to_key(key)
 
-    s = stream(mrk, k, math.ceil(len(ctext) / BLOCK_SIZE + 1))
+    s = stream(mrk, k, math.ceil(len(ctext) / BLOCK_SIZE))
 
     ptext = ''
     output_raw = bytearray(len(ctext))
@@ -251,6 +251,15 @@ def decrypt_text(ctext, key, tweak = (0, 0)):
         output_raw[i] = (10 + s[i] // 10 - ctext[i] // 10) % 10 * 10
         output_raw[i] += (10 + s[i] % 10 - ctext[i] % 10) % 10
         ptext += charset[output_raw[i]]
+        
+    #=========== +/- 1 tweak ==================
+    # Strip out damaged chars
+    
+    index = tweak[0] - 1
+    
+    if(tweak[1] < 0):
+        ptext = ptext[:index] + ptext[index + math.ceil(-tweak[1] / 2):]
+    #==========================================
 
     return ptext
     
