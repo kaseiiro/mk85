@@ -2,7 +2,7 @@
 # Soviet microcomputer partial emulation
 #
 # DISCLAMER. This is not a MK85C clone! Coincidences are accidental.
-# Version 0.3.
+# Version 0.4.
 # 2024  kaseiiro@gmail.com
 #
 # This program is free software: you can redistribute it and/or modify
@@ -227,12 +227,14 @@ def dec_to_str(data):
 def decrypt_text(ctext, key, tweak = (0, 0)):
 
     #=========== +/- 1 tweak ==================
-    index = (tweak[0] - 1) * 2 + 10
+    
     
     if(tweak[1] < 0):
+        index = tweak[0] * 2 + 10
         #ctext = ('0' * (-tweak[1])).join([ctext[:tweak[0] + 10], ctext[tweak[0] + 10:]])
         ctext = ctext[:index] + '0' * (-tweak[1]) + ctext[index:]
     if(tweak[1] > 0):
+        index = (tweak[0] - 1) * 2 + 10
         ctext = ctext[:index] + ctext[index + tweak[1]:]
     #==========================================
 
